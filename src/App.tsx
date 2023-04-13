@@ -1,12 +1,22 @@
-import { useState } from "react";
+import { ChangeEvent, useState } from "react";
 import "./styles/global.css";
 import banner from "./assets/img/banner3.svg";
+import { RiDeleteBin6Line } from "react-icons/ri";
 
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { supabase } from "./lib/supabase";
 
 const createUserFormSchema = z.object({
+  avatar: z
+    .instanceof(FileList)
+    .transform((list) => list.item(0)!)
+    .refine((file) => file != null || undefined, "O arquivo é obrigatorio")
+    .refine(
+      (file) => file?.size <= 5 * 1024 * 1024,
+      "O arquivo precisa ter no máximo 5MB"
+    ),
   name: z
     .string()
     .nonempty("O nome é obrigatório")
@@ -41,6 +51,7 @@ type CreateUserFormData = z.infer<typeof createUserFormSchema>;
 
 function App() {
   const [output, setOutput] = useState("");
+  const [file, setFile] = useState<File>();
   const {
     register,
     handleSubmit,
@@ -55,26 +66,63 @@ function App() {
     name: "techs",
   });
 
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setFile(e.target.files[0]);
+    }
+  };
+
   function addNewTech() {
     append({ title: "", knowledge: 1 });
   }
+  function deleteTech(id: number) {
+    remove(id);
+  }
 
-  function createUser(data: CreateUserFormData) {
+  async function createUser(data: CreateUserFormData) {
+    await supabase.storage
+      .from("form-react")
+      .upload(data.avatar?.name, data.avatar);
     setOutput(JSON.stringify(data, null, 2));
   }
 
   return (
-    <main className="min-h-screen h-max bg-zinc-950 text-zinc-300 flex flex-col gap-10 items-center justify-center">
+    <main className="max-sm:px-6 pb-6  min-h-screen h-max bg-zinc-900 text-zinc-300 flex flex-col gap-10 items-center justify-center">
       <img className="max-w-xs" src={banner} alt="" />
       <form
         onSubmit={handleSubmit(createUser)}
-        className="flex flex-col gap-4 w-full max-w-xs"
+        className="flex flex-col gap-4 w-full max-w-md"
       >
+        <div className="flex flex-col gap-1">
+          <span>Avatar</span>
+          <label
+            htmlFor="avatar"
+            className="cursor-pointer items-center flex justify-center border border-zinc-700 shadow-sm rounded h-10 px-3 bg-zinc-800 text-white"
+          >
+            {file ? `${file.name}` : "Escolher Arquivo..."}
+          </label>
+          <input
+            id="avatar"
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            // className="opacity-0  w-0 h-0"
+            {...register("avatar")}
+            onChange={handleFileChange}
+          />
+
+          {errors.avatar && (
+            <span className="text-white bg-red-900 rounded px-2">
+              {errors.avatar.message}
+            </span>
+          )}
+        </div>
+
         <div className="flex flex-col gap-1">
           <label htmlFor="name">Nome</label>
           <input
             type="text"
-            className="border border-zinc-800 shadow-sm rounded h-10 px-3 bg-zinc-900 text-white"
+            className="border border-zinc-700 shadow-sm rounded h-10 px-3 bg-zinc-800 text-white"
             {...register("name")}
           />
 
@@ -84,11 +132,12 @@ function App() {
             </span>
           )}
         </div>
+
         <div className="flex flex-col gap-1">
           <label htmlFor="email">E-mail</label>
           <input
             type="email"
-            className="border border-zinc-800 shadow-sm rounded h-10 px-3 bg-zinc-900 text-white"
+            className="border border-zinc-700 shadow-sm rounded h-10 px-3 bg-zinc-800 text-white"
             {...register("email")}
           />
 
@@ -103,7 +152,7 @@ function App() {
           <label htmlFor="password">Senha</label>
           <input
             type="password"
-            className="border border-zinc-800 shadow-sm rounded h-10 px-3 bg-zinc-900 text-white"
+            className="border border-zinc-700 shadow-sm rounded h-10 px-3 bg-zinc-800 text-white"
             {...register("password")}
           />
           {errors.password && (
@@ -113,7 +162,7 @@ function App() {
           )}
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-2">
           <label htmlFor="" className="flex items-center justify-between">
             Tecnologias
             <button
@@ -128,32 +177,45 @@ function App() {
           {fields.map((field, index) => {
             return (
               <div className="flex gap-2" key={field.id}>
-                <div className="flex-1 flex flex-col gap-1">
-                  <input
-                    type="text"
-                    className=" border border-zinc-800 shadow-sm rounded h-10 px-3 bg-zinc-900 text-white"
-                    {...register(`techs.${index}.title`)}
-                  />
+                <button
+                  onClick={() => deleteTech(index)}
+                  type="button"
+                  className="text-red-500 text-lg w-10 max-w-[40px] h-10 max-h-10 rounded border border-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
+                >
+                  <RiDeleteBin6Line />
+                </button>
 
-                  {errors.techs?.[index]?.title && (
-                    <span className="text-white bg-red-900 rounded px-2">
-                      {errors.techs?.[index]?.title?.message}
-                    </span>
-                  )}
-                </div>
+                <div className="flex-1 flex flex-col gap-1  ">
+                  <div className="flex-1 flex gap-1  ">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <input
+                        type="text"
+                        className=" border border-zinc-700 shadow-sm rounded h-10 px-3 bg-zinc-800 text-white"
+                        {...register(`techs.${index}.title`)}
+                      />
+                    </div>
 
-                <div className="flex flex-col gap-1">
-                  <input
-                    type="number"
-                    className="w-16 border border-zinc-800 shadow-sm rounded h-10 px-3 bg-zinc-900 text-white"
-                    {...register(`techs.${index}.knowledge`)}
-                  />
-
-                  {errors.techs?.[index]?.knowledge && (
-                    <span className="text-white bg-red-900 rounded px-2">
-                      {errors.techs?.[index]?.knowledge?.message}
-                    </span>
-                  )}
+                    <div className="flex flex-col gap-1 items-end">
+                      <input
+                        type="number"
+                        className="w-full max-w-[64px] border border-zinc-700 shadow-sm rounded h-10 px-3 bg-zinc-800 text-white"
+                        {...register(`techs.${index}.knowledge`)}
+                      />
+                    </div>
+                  </div>
+                  {errors?.techs?.length! >= 2 &&
+                    errors.techs?.[index]?.title && (
+                      <span className="text-white bg-red-900 rounded px-2">
+                        {errors.techs?.[index]?.title?.message}
+                      </span>
+                    )}
+                  {errors?.techs?.length! >= 2 &&
+                    !errors.techs?.[index]?.title &&
+                    errors.techs?.[index]?.knowledge && (
+                      <span className="text-white bg-red-900 rounded px-2">
+                        {errors.techs?.[index]?.knowledge?.message}
+                      </span>
+                    )}
                 </div>
               </div>
             );
@@ -173,8 +235,6 @@ function App() {
           Enviar
         </button>
       </form>
-
-      <pre>{output}</pre>
     </main>
   );
 }
