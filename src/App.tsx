@@ -9,6 +9,9 @@ import { supabase } from "./lib/supabase";
 import { Form } from "./components/Form";
 import { createUserFormSchema, CreateUserFormData } from "./lib/zodUserForm";
 
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
 function App() {
   const createUserForm = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserFormSchema),
@@ -33,13 +36,35 @@ function App() {
   }
 
   async function createUser(data: CreateUserFormData) {
-    await supabase.storage
-      .from("form-react")
-      .upload(data.avatar?.name, data.avatar);
+    toast.success("Usuário criado com sucesso!", {
+      position: "top-right",
+      autoClose: 3000,
+      hideProgressBar: false,
+      closeOnClick: true,
+      pauseOnHover: true,
+      draggable: true,
+      progress: undefined,
+      theme: "light",
+    });
+    // await supabase.storage
+    //   .from("form-react")
+    //   .upload(data.avatar?.name, data.avatar);
   }
 
   return (
     <main className="max-sm:px-6 pb-6  min-h-screen h-max bg-zinc-900 text-zinc-300 flex flex-col gap-10 items-center justify-center">
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
       <FormProvider {...createUserForm}>
         <img className="max-w-xs" src={banner} alt="" />
         <form
